@@ -7,6 +7,7 @@ import { createMessage, deleteMessage, editMessage } from '../domain/messages.js
 import { setReaction } from '../domain/reactions.js';
 import { drain } from '../worker.js';
 import { AVATAR_COLORS, CHANNELS, DMS, SEED_MESSAGES, USERS } from './data.js';
+import { generateSeedMessages } from './generate.js';
 
 const existing = await pool.query('SELECT count(*)::int AS n FROM users');
 if (existing.rows[0].n > 0) {
@@ -48,8 +49,11 @@ const now = Date.now();
 const minutesAgo = (m: number) => new Date(now - m * 60_000);
 let messageCount = 0;
 
+// Hand-written conversations (the demo's story) plus deterministic bulk traffic.
+const allMessages = [...SEED_MESSAGES, ...generateSeedMessages()];
+
 await withTx(async (tx) => {
-  for (const m of [...SEED_MESSAGES].sort((a, b) => b.minutesAgo - a.minutesAgo)) {
+  for (const m of allMessages.sort((a, b) => b.minutesAgo - a.minutesAgo)) {
     const channelId = lookup(channelIds, m.channel);
     const { message } = await createMessage(tx, {
       id: uuidv7(),

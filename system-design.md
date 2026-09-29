@@ -114,6 +114,7 @@ The feed stores **references, not snapshots**. Each item is rendered from the *l
   - Edited → send the latest text.
 - **Staleness:** events older than 15 minutes are dropped. After an outage, nobody gets a flood of notifications from an hour ago. This also stops seeding from sending notifications.
 - **Idempotency key** `messageId:userId` is passed to the sender. Retries and edits don't notify twice, but a mention *added* by an edit does notify.
+- **Per-recipient acknowledgements** (`notification_acks`): on retry, only recipients the provider hasn't acknowledged are re-sent. Without this, a retry re-sent to everyone, so an attempt only succeeded if *every* recipient's call did. At a 50% failure rate that's 0.5⁴ ≈ 6% for four recipients, and messages with many mentions would go `dead` (found during Phase 5 testing). The idempotency key still covers the one case acks can't: the provider sent it but the response was lost.
 - **Honest limit:** a notification can't be recalled once sent. "Deleted within the grace period, so never sent" is the guarantee. There is also a small gap between the final check and the send.
 
 ---
@@ -169,6 +170,9 @@ event_deliveries(
 -- They stand in for external systems' own storage.
 fake_search_docs(id uuid PK, version int, deleted bool, body text, channel_id uuid)
 fake_notifications_sent(idempotency_key text PK, user_id, body text, sent_at)
+
+-- Ours, not the fake's: which notifications the provider has acknowledged (§2.6).
+notification_acks(idempotency_key text PK, acked_at)
 ```
 
 **Rejected:**
@@ -238,6 +242,8 @@ COMMIT
 
 **Notifications (external):** follows the policy in §2.6.
 
+**Fault model for the fakes:** each call gets random latency, and an injected failure is equally likely to be *request lost* (nothing happened) or *response lost* (the call succeeded but the caller sees an error). The second is what makes retries repeat work, so it's what actually exercises the version checks and idempotency keys. Fault rates can be changed at runtime with `POST /api/debug/faults`, and `GET /api/debug/deliveries` shows per-consumer state, retries with their last error, dead deliveries and recent notifications.
+
 **Why the activity feed is local but still behind the outbox:** it's the one consumer that can share a transaction with its delivery state, and that gives the strongest guarantee in the system. It stays asynchronous and separated so it could become a separate service later without redesign.
 
 ---
@@ -281,7 +287,7 @@ If time runs short: send and reactions first, then edit and delete.
 | Every committed change reaches every consumer **at least once** | Outbox + delivery rows in the same transaction; retries with backoff | Latency: consumers catch up *eventually*. After 10 failures a delivery is marked `dead` and needs a manual replay (UI cut). |
 | Activity processes each event **exactly once** | Projection write + delivery marked done in one transaction; recompute from source | — |
 | Search **converges to the latest version** | Thin events, writes that only apply if the version is newer, tombstones | Search may be briefly behind |
-| No duplicate notifications | Idempotency key `messageId:userId` honoured by the sender | — |
+| No duplicate notifications | Idempotency key `messageId:userId` honoured by the sender; per-recipient acks so retries only re-send failures | — |
 | No notification for a message deleted within the grace period | Delayed delivery + check of current state before sending | **Can't recall** a sent notification; a small gap exists between the check and the send |
 | Consumers don't depend on ordering | Versions + recompute from current state | **No global ordering** of events |
 | Realtime updates | WebSocket after commit | **Best-effort**: can drop events; the client refetches on reconnect |
@@ -303,7 +309,7 @@ About 20 users, 8 public channels, a handful of DMs, and about 500 messages, wit
 | Cut | Why it's acceptable / what I'd do instead |
 |---|---|
 | Pagination | Load the last 100 messages; the `(created_at, id)` index is already there for cursor pagination |
-| Dev control panel | Fault rates via env vars (`SEARCH_FAILURE_RATE`, `NOTIFY_FAILURE_RATE`, latency) + `GET /debug/deliveries` |
+| Dev control panel | Fault rates via env vars (`SEARCH_FAILURE_RATE`, `NOTIFY_FAILURE_RATE`, latency) or `POST /api/debug/faults` at runtime, + `GET /api/debug/deliveries` |
 | Muting threads | `thread_subscriptions` would just gain a `muted` flag |
 | Grouping thread replies | Would reuse the same recompute pattern as DM grouping |
 | Auto-read when viewing a message | Would mark activity read when a message becomes visible |

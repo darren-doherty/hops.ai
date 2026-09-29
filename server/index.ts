@@ -12,6 +12,7 @@ import { searchRoutes } from './routes/search.js';
 import { realtimeRoutes } from './routes/realtime.js';
 import { activityRoutes } from './routes/activity.js';
 import { reactionRoutes } from './routes/reactions.js';
+import { debugRoutes } from './routes/debug.js';
 
 const app = Fastify({ logger: { level: 'info' }, disableRequestLogging: true });
 
@@ -28,6 +29,7 @@ await app.register(realtimeRoutes);
 await app.register(
   async (api) => {
     await api.register(publicUserRoutes);
+    await api.register(debugRoutes);
     await api.register(async (authed) => {
       authed.addHook('preHandler', requireUser);
       await authed.register(userRoutes);

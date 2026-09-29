@@ -113,6 +113,15 @@ CREATE TABLE event_deliveries (
 );
 CREATE INDEX event_deliveries_due_idx ON event_deliveries (status, next_attempt_at);
 
+-- Our record of which notifications the provider has acknowledged. On retry,
+-- acknowledged recipients are skipped, so one flaky recipient doesn't force
+-- re-sending to everyone. (A lost acknowledgement is covered by the provider's
+-- idempotency key.)
+CREATE TABLE notification_acks (
+  idempotency_key text PRIMARY KEY,          -- messageId:userId
+  acked_at    timestamptz NOT NULL DEFAULT now()
+);
+
 -- ─── Fake external systems' own storage ─────────────────────────────────────
 -- Only accessed through server/fakes/*. They stand in for storage owned by
 -- external services, so no foreign keys into the domain tables.

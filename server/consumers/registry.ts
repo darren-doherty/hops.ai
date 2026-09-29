@@ -14,7 +14,7 @@ export const SUBSCRIPTIONS: Record<ConsumerName, EventType[]> = {
  * Consumers that get delivery rows. Grows as each phase lands, so no rows pile
  * up for consumers that don't exist yet.
  */
-export const ENABLED_CONSUMERS: ConsumerName[] = ['search', 'activity'];
+export const ENABLED_CONSUMERS: ConsumerName[] = ['search', 'activity', 'notifications'];
 
 export function subscribersFor(type: EventType): ConsumerName[] {
   return ENABLED_CONSUMERS.filter((c) => SUBSCRIPTIONS[c].includes(type));
