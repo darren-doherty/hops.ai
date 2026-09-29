@@ -34,6 +34,15 @@ export type MessageDto = {
   reactions: ReactionSummary[];
 };
 
+export type SearchHit = {
+  id: string;
+  channelId: string;
+  authorId: string;
+  parentId: string | null;
+  body: string;
+  createdAt: string;
+};
+
 export type ActivityReason = 'mention' | 'dm' | 'participating' | 'reaction';
 
 export type ServerEvent =

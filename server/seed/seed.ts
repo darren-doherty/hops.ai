@@ -1,9 +1,10 @@
-// Seeds users, channels, memberships and DMs. Messages are added in later phases,
-// always through the domain service so the outbox fills search and activity (§7).
-// Run after `pnpm db:reset`.
+// Seeds users, channels, memberships, DMs and messages. Messages go through the
+// domain service (not bulk SQL), so the outbox fills search and activity just
+// as it would for real traffic (§7). Run after `pnpm db:reset`.
 import { v7 as uuidv7 } from 'uuid';
 import { pool, withTx } from '../db.js';
-import { AVATAR_COLORS, CHANNELS, DMS, USERS } from './data.js';
+import { createMessage } from '../domain/messages.js';
+import { AVATAR_COLORS, CHANNELS, DMS, SEED_MESSAGES, USERS } from './data.js';
 
 const existing = await pool.query('SELECT count(*)::int AS n FROM users');
 if (existing.rows[0].n > 0) {
@@ -11,8 +12,10 @@ if (existing.rows[0].n > 0) {
   process.exit(1);
 }
 
+const userIds = new Map<string, string>();
+const channelIds = new Map<string, string>();
+
 await withTx(async (tx) => {
-  const userIds = new Map<string, string>();
   for (const [i, u] of USERS.entries()) {
     const id = uuidv7();
     userIds.set(u.handle, id);
@@ -23,11 +26,10 @@ await withTx(async (tx) => {
 
   const addChannel = async (name: string, kind: 'public' | 'dm', topic: string, handles: string[]) => {
     const id = uuidv7();
+    channelIds.set(name, id);
     await tx.query('INSERT INTO channels (id, name, kind, topic) VALUES ($1, $2, $3, $4)', [id, name, kind, topic]);
     for (const h of handles) {
-      const userId = userIds.get(h);
-      if (!userId) throw new Error(`Unknown handle in seed data: ${h}`);
-      await tx.query('INSERT INTO channel_members (channel_id, user_id) VALUES ($1, $2)', [id, userId]);
+      await tx.query('INSERT INTO channel_members (channel_id, user_id) VALUES ($1, $2)', [id, lookup(userIds, h)]);
     }
   };
 
@@ -39,5 +41,41 @@ await withTx(async (tx) => {
   }
 });
 
-console.log(`Seeded ${USERS.length} users, ${CHANNELS.length} channels, ${DMS.length} DMs`);
+// Oldest first, so replies and events happen in a plausible order.
+const now = Date.now();
+const minutesAgo = (m: number) => new Date(now - m * 60_000);
+let messageCount = 0;
+
+await withTx(async (tx) => {
+  for (const m of [...SEED_MESSAGES].sort((a, b) => b.minutesAgo - a.minutesAgo)) {
+    const channelId = lookup(channelIds, m.channel);
+    const { message } = await createMessage(tx, {
+      id: uuidv7(),
+      channelId,
+      authorId: lookup(userIds, m.author),
+      body: m.text,
+      createdAt: minutesAgo(m.minutesAgo),
+    });
+    messageCount++;
+    for (const r of m.replies ?? []) {
+      await createMessage(tx, {
+        id: uuidv7(),
+        channelId,
+        authorId: lookup(userIds, r.author),
+        body: r.text,
+        parentId: message.id,
+        createdAt: minutesAgo(m.minutesAgo - r.after),
+      });
+      messageCount++;
+    }
+  }
+});
+
+console.log(`Seeded ${USERS.length} users, ${CHANNELS.length} channels, ${DMS.length} DMs, ${messageCount} messages`);
 await pool.end();
+
+function lookup(map: Map<string, string>, key: string): string {
+  const value = map.get(key);
+  if (!value) throw new Error(`Unknown seed reference: ${key}`);
+  return value;
+}

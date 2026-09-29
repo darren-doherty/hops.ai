@@ -10,7 +10,8 @@
     "db:reset:test": "tsx scripts/db-reset.ts --test",
     "seed": "tsx server/seed/seed.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "sql": "tsx scripts/sql.ts"
   },
   "dependencies": {
     "@fastify/websocket": "^11.3.1",

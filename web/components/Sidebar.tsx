@@ -1,5 +1,6 @@
 import { useStore } from '../store';
 import { UserSwitcher } from './UserSwitcher';
+import { SearchBox } from './SearchBox';
 import type { UserDto } from '../../shared/types';
 
 export function Sidebar({ users }: { users: UserDto[] }) {
@@ -15,6 +16,7 @@ export function Sidebar({ users }: { users: UserDto[] }) {
   return (
     <nav className="sidebar">
       <UserSwitcher me={me} users={users} />
+      <SearchBox />
 
       <button
         className={`nav-item activity-link ${view?.kind === 'activity' ? 'active' : ''}`}

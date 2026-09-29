@@ -85,7 +85,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 }
 
 /* Main */
-.main { display: flex; flex-direction: column; min-width: 0; }
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .main-header {
   display: flex;
   align-items: baseline;
@@ -111,3 +111,107 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 }
 .picker li button:hover { background: #f3f2f6; }
 .notice { color: var(--unread); }
+
+/* Connection */
+.connection-banner {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 6px 20px;
+  font-size: 13px;
+  border-bottom: 1px solid #fde68a;
+}
+
+/* Search */
+.search-box { padding: 6px 4px 2px; }
+.search-box input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+}
+.search-box input::placeholder { color: var(--sidebar-fg); opacity: 0.7; }
+.search-results { overflow-y: auto; padding: 8px 0; }
+.search-hit {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.search-hit:hover { background: #f8f8fa; }
+.search-hit .message-meta { gap: 8px; }
+mark { background: #fef08a; color: inherit; border-radius: 2px; }
+
+/* Messages */
+.message-list { flex: 1; overflow-y: auto; padding: 8px 0 16px; }
+.message {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  padding: 6px 20px 6px 0;
+  transition: background 0.3s;
+}
+.message.compact { padding-top: 1px; padding-bottom: 1px; }
+.message:hover { background: #f8f8fa; }
+.message.highlight { background: #fef9c3; }
+.message.pending { opacity: 0.55; }
+.message-gutter { display: flex; justify-content: center; padding-top: 2px; }
+.hover-time { font-size: 11px; color: var(--muted); visibility: hidden; line-height: 22px; }
+.message:hover .hover-time { visibility: visible; }
+.message-content { min-width: 0; }
+.message-meta { display: flex; align-items: baseline; gap: 8px; }
+.message-meta .author { font-weight: 700; }
+.message-meta .time { font-size: 12px; }
+.message-body { white-space: pre-wrap; word-wrap: break-word; line-height: 1.45; }
+.deleted { font-style: italic; }
+.edited { font-size: 12px; }
+.mention { background: #e0e7ff; color: #3730a3; border-radius: 3px; padding: 0 2px; }
+.mention-me { background: #fde68a; color: #78350f; font-weight: 600; }
+.replies-link { margin-top: 4px; font-size: 13px; font-weight: 600; color: var(--accent); }
+.send-failed { color: var(--unread); font-size: 13px; margin-top: 2px; }
+.send-failed button { color: var(--unread); text-decoration: underline; font-size: 13px; padding: 0; }
+
+.day-divider {
+  display: flex;
+  align-items: center;
+  margin: 12px 20px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.day-divider::before, .day-divider::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
+.day-divider span { padding: 2px 12px; border: 1px solid var(--border); border-radius: 12px; }
+
+/* Composer */
+.composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin: 0 20px 16px;
+  padding: 8px;
+  border: 1px solid #c9c8ce;
+  border-radius: 8px;
+}
+.composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.composer textarea {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  font: inherit;
+  line-height: 1.45;
+  padding: 4px;
+}
+.composer .send {
+  background: var(--accent);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.composer .send:disabled { background: #c9c8ce; cursor: default; }

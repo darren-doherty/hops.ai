@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api, currentHandle } from './api';
+import { connectRealtime } from './realtime';
 import { useStore } from './store';
 import { Sidebar } from './components/Sidebar';
 import { UserPicker } from './components/UserSwitcher';
+import { ChannelView } from './components/ChannelView';
+import { SearchView } from './components/SearchView';
 import type { UserDto } from '../shared/types';
 
 export function App() {
@@ -18,6 +21,7 @@ export function App() {
         if (!currentHandle) return;
         const [meUser, channels] = await Promise.all([api.me(), api.channels()]);
         useStore.getState().setSession(meUser, allUsers, channels);
+        connectRealtime(currentHandle);
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
       }
@@ -41,26 +45,24 @@ export function App() {
 function Main() {
   const view = useStore((s) => s.view);
   const channels = useStore((s) => s.channels);
+  const connection = useStore((s) => s.connection);
   const channel = view?.kind === 'channel' ? channels.find((c) => c.id === view.channelId) : undefined;
-
-  if (view?.kind === 'activity') {
-    return (
-      <main className="main">
-        <header className="main-header">
-          <h1>Activity</h1>
-        </header>
-        <div className="empty muted">Nothing here yet.</div>
-      </main>
-    );
-  }
 
   return (
     <main className="main">
-      <header className="main-header">
-        <h1>{channel ? (channel.kind === 'dm' ? channel.name : `# ${channel.name}`) : ''}</h1>
-        {channel?.topic && <span className="muted topic">{channel.topic}</span>}
-      </header>
-      <div className="empty muted">No messages yet.</div>
+      {connection === 'reconnecting' && (
+        <div className="connection-banner">Reconnecting… messages may be out of date until the connection is back.</div>
+      )}
+      {view?.kind === 'activity' && (
+        <>
+          <header className="main-header">
+            <h1>Activity</h1>
+          </header>
+          <div className="empty muted">Nothing here yet.</div>
+        </>
+      )}
+      {view?.kind === 'search' && <SearchView q={view.q} />}
+      {channel && <ChannelView channel={channel} />}
     </main>
   );
 }
