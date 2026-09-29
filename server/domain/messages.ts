@@ -98,11 +98,9 @@ export async function createMessage(
   tx: PoolClient,
   input: CreateMessageInput,
 ): Promise<{ message: MessageDto; created: boolean }> {
-  const body = input.body.trim();
+  const body = validateBody(input.body);
   const parentId = input.parentId ?? null;
   if (!UUID_RE.test(input.id)) throw new HttpError(400, 'id must be a UUID');
-  if (!body) throw new HttpError(400, 'Message body is empty');
-  if (body.length > MAX_BODY_LENGTH) throw new HttpError(400, `Message body exceeds ${MAX_BODY_LENGTH} characters`);
   await assertMember(tx, input.channelId, input.authorId);
 
   if (parentId) {
@@ -132,31 +130,126 @@ export async function createMessage(
     return { message: existing, created: false };
   }
 
-  // Mentions only count for channel members (§2.2).
-  const handles = parseMentions(body);
-  const { rows: mentioned } = handles.length
-    ? await tx.query<{ id: string }>(
-        `SELECT u.id FROM users u
-           JOIN channel_members cm ON cm.user_id = u.id AND cm.channel_id = $1
-          WHERE u.handle = ANY($2::text[])`,
-        [input.channelId, handles],
-      )
-    : { rows: [] };
-  const mentionedIds = mentioned.map((u) => u.id);
+  const mentionedIds = await resolveMentions(tx, input.channelId, body);
   if (mentionedIds.length) {
     await tx.query('INSERT INTO mentions (message_id, user_id) SELECT $1, unnest($2::uuid[])', [input.id, mentionedIds]);
   }
-
   // Thread subscribers: root author, repliers, anyone mentioned in the thread (§2.2).
-  const rootId = parentId ?? input.id;
-  await tx.query(
-    `INSERT INTO thread_subscriptions (root_id, user_id)
-     SELECT $1, unnest($2::uuid[]) ON CONFLICT DO NOTHING`,
-    [rootId, [input.authorId, ...mentionedIds]],
-  );
+  await subscribeToThread(tx, parentId ?? input.id, [input.authorId, ...mentionedIds]);
 
   await enqueue(tx, 'MessageCreated', input.id);
 
   const message = await getMessageDto(tx, input.id);
   return { message: message!, created: true };
+}
+
+/**
+ * Edits a message's text. Optimistic concurrency: the client says which
+ * version it edited, and a mismatch is a 409 carrying the current message so
+ * the client can show what changed (§4.1).
+ */
+export async function editMessage(
+  tx: PoolClient,
+  input: {
+    id: string;
+    userId: string;
+    body: string;
+    expectedVersion: number;
+    /** Seeding only: backdates the edit. Not exposed over HTTP. */
+    editedAt?: Date;
+  },
+): Promise<{ message: MessageDto; changed: boolean }> {
+  const body = validateBody(input.body);
+  const current = await lockOwnMessage(tx, input.id, input.userId);
+  if (current.status === 'deleted') throw new HttpError(409, 'Message was deleted', { current: await getMessageDto(tx, input.id) });
+  if (current.version !== input.expectedVersion) {
+    throw new HttpError(409, 'Message was changed elsewhere', { current: await getMessageDto(tx, input.id) });
+  }
+  if (current.body === body) return { message: (await getMessageDto(tx, input.id))!, changed: false };
+
+  await tx.query(
+    'UPDATE messages SET body = $2, version = version + 1, edited_at = COALESCE($3, now()) WHERE id = $1',
+    [input.id, body, input.editedAt ?? null],
+  );
+
+  // Re-sync mentions. Newly mentioned people also join the thread; people
+  // whose mention was removed keep any subscription they already had.
+  const mentionedIds = await resolveMentions(tx, current.channel_id, body);
+  await tx.query('DELETE FROM mentions WHERE message_id = $1 AND NOT (user_id = ANY($2::uuid[]))', [input.id, mentionedIds]);
+  if (mentionedIds.length) {
+    await tx.query(
+      'INSERT INTO mentions (message_id, user_id) SELECT $1, unnest($2::uuid[]) ON CONFLICT DO NOTHING',
+      [input.id, mentionedIds],
+    );
+    await subscribeToThread(tx, current.parent_id ?? input.id, mentionedIds);
+  }
+
+  await enqueue(tx, 'MessageEdited', input.id);
+  return { message: (await getMessageDto(tx, input.id))!, changed: true };
+}
+
+/**
+ * Soft delete (§4.1). The row stays because replies, activity and search all
+ * reference it; the text stays in the database but is never serialised.
+ * Idempotent: deleting a deleted message is a no-op.
+ */
+export async function deleteMessage(
+  tx: PoolClient,
+  input: { id: string; userId: string },
+): Promise<{ message: MessageDto; changed: boolean }> {
+  const current = await lockOwnMessage(tx, input.id, input.userId);
+  if (current.status === 'deleted') return { message: (await getMessageDto(tx, input.id))!, changed: false };
+  await tx.query("UPDATE messages SET status = 'deleted', version = version + 1 WHERE id = $1", [input.id]);
+  await enqueue(tx, 'MessageDeleted', input.id);
+  return { message: (await getMessageDto(tx, input.id))!, changed: true };
+}
+
+type MessageRow = {
+  id: string;
+  channel_id: string;
+  author_id: string;
+  parent_id: string | null;
+  body: string;
+  status: 'active' | 'deleted';
+  version: number;
+};
+
+/** Row-locks a message for the rest of the transaction, and checks the caller wrote it. */
+async function lockOwnMessage(tx: PoolClient, id: string, userId: string): Promise<MessageRow> {
+  const { rows } = await tx.query<MessageRow>(
+    'SELECT id, channel_id, author_id, parent_id, body, status, version FROM messages WHERE id = $1 FOR UPDATE',
+    [id],
+  );
+  const row = rows[0];
+  if (!row) throw new HttpError(404, 'Message not found');
+  if (row.author_id !== userId) throw new HttpError(403, 'You can only change your own messages');
+  return row;
+}
+
+function validateBody(raw: string): string {
+  const body = raw.trim();
+  if (!body) throw new HttpError(400, 'Message body is empty');
+  if (body.length > MAX_BODY_LENGTH) throw new HttpError(400, `Message body exceeds ${MAX_BODY_LENGTH} characters`);
+  return body;
+}
+
+/** @handles in the body that belong to channel members. Mentions of anyone else are ignored (§2.2). */
+async function resolveMentions(tx: PoolClient, channelId: string, body: string): Promise<string[]> {
+  const handles = parseMentions(body);
+  if (!handles.length) return [];
+  const { rows } = await tx.query<{ id: string }>(
+    `SELECT u.id FROM users u
+       JOIN channel_members cm ON cm.user_id = u.id AND cm.channel_id = $1
+      WHERE u.handle = ANY($2::text[])`,
+    [channelId, handles],
+  );
+  return rows.map((u) => u.id);
+}
+
+async function subscribeToThread(tx: PoolClient, rootId: string, userIds: string[]) {
+  await tx.query(
+    `INSERT INTO thread_subscriptions (root_id, user_id)
+     SELECT $1, unnest($2::uuid[]) ON CONFLICT DO NOTHING`,
+    [rootId, userIds],
+  );
 }

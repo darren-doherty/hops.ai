@@ -64,6 +64,11 @@ export type SeedMessage = {
   text: string;
   minutesAgo: number;
   replies?: SeedReply[];
+  /** [handle, emoji, minutes after the message] */
+  reactions?: [string, string, number][];
+  edit?: { text: string; after: number };
+  /** Deleted after its replies were written: shows the tombstone-with-replies case */
+  deleted?: boolean;
 };
 
 /**
@@ -75,6 +80,7 @@ export const SEED_MESSAGES: SeedMessage[] = [
   // #general
   { channel: 'general', author: 'kate', text: 'Morning all! Reminder that the all-hands moved to Thursday 3pm.', minutesAgo: 2880 },
   { channel: 'general', author: 'sam', text: 'Welcome @tom to the team! Tom is joining platform engineering 🎉', minutesAgo: 2700,
+    reactions: [['alice', '🎉', 3], ['bob', '🎉', 4], ['kate', '❤️', 6], ['grace', '🎉', 9], ['tom', '🙏', 10]],
     replies: [
       { author: 'tom', text: 'Thanks everyone, excited to be here!', after: 5 },
       { author: 'alice', text: 'Welcome Tom! Grab me any time if you want a tour of the codebase.', after: 12 },
@@ -91,6 +97,7 @@ export const SEED_MESSAGES: SeedMessage[] = [
       { author: 'erin', text: 'Thanks @farid 🙏', after: 10 },
     ] },
   { channel: 'engineering', author: 'alice', text: 'RFC for the new activity feed is up for review: projection-based, fed by the outbox. Feedback welcome @bob @carol', minutesAgo: 1440,
+    reactions: [['bob', '👍', 20], ['carol', '❤️', 50], ['erin', '👀', 90]],
     replies: [
       { author: 'bob', text: 'Read it. Love the per-consumer delivery rows. How do we handle a consumer being down for a day?', after: 30 },
       { author: 'alice', text: 'Exponential backoff capped at 5 minutes, then dead-letter after 10 attempts. Notifications also drop anything older than 15 min.', after: 42 },
@@ -98,11 +105,13 @@ export const SEED_MESSAGES: SeedMessage[] = [
     ] },
   { channel: 'engineering', author: 'hiro', text: 'Anyone else seeing slow builds since the Node 24 upgrade?', minutesAgo: 900 },
   { channel: 'engineering', author: 'jamal', text: 'Can someone from product confirm the rollout plan? cc @dave', minutesAgo: 700 },
-  { channel: 'engineering', author: 'nate', text: 'Deploy of api v2.14 is done ✅', minutesAgo: 300 },
+  { channel: 'engineering', author: 'nate', text: 'Deploy of api v2.14 is done ✅', minutesAgo: 300,
+    edit: { text: 'Deploy of api v2.14 is done ✅ (search change rolled back, see #incidents)', after: 7 } },
   { channel: 'engineering', author: 'olga', text: 'Search latency p95 is up to 800ms, I\'m investigating.', minutesAgo: 120 },
   { channel: 'engineering', author: 'quinn', text: 'PR for the rate limiter is ready: tiny change, big impact. @alice would you mind taking a look?', minutesAgo: 25 },
   { channel: 'engineering', author: 'leo', text: 'Lunch order going in at 12:30 if anyone wants in', minutesAgo: 6 },
   { channel: 'engineering', author: 'alice', text: 'Shipping the activity feed behind a flag tomorrow morning.', minutesAgo: 50,
+    reactions: [['bob', '🎉', 12], ['carol', '🎉', 31], ['hiro', '👍', 35], ['erin', '👀', 40]],
     replies: [
       { author: 'bob', text: '🚀 nice! I\'ll keep an eye on the worker metrics.', after: 10 },
       { author: 'carol', text: '@alice can we demo it at the all-hands?', after: 30 },
@@ -137,7 +146,13 @@ export const SEED_MESSAGES: SeedMessage[] = [
   // #random
   { channel: 'random', author: 'jamal', text: 'Who left the sourdough starter in the fridge 😅', minutesAgo: 1600 },
   { channel: 'random', author: 'rosa', text: 'Photos from the team hike are up!', minutesAgo: 800 },
-  { channel: 'random', author: 'sam', text: 'Coffee machine is fixed ☕', minutesAgo: 45 },
+  { channel: 'random', author: 'sam', text: 'Coffee machine is fixed ☕', minutesAgo: 45, reactions: [['jamal', '🙏', 2], ['rosa', '🎉', 5]] },
+  { channel: 'random', author: 'sam', text: 'Anyone up for a board game night on Friday?', minutesAgo: 600, deleted: true,
+    replies: [
+      { author: 'jamal', text: "I'm in! I'll bring Catan.", after: 5 },
+      { author: 'leo', text: 'Count me in 🎲', after: 8 },
+    ] },
+  { channel: 'random', author: 'tom', text: 'oops, wrong channel', minutesAgo: 20, deleted: true },
 
   // #leadership
   { channel: 'leadership', author: 'priya', text: 'Hiring plan draft for H1 is in the shared folder.', minutesAgo: 3000 },

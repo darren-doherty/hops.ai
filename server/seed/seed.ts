@@ -3,7 +3,8 @@
 // as it would for real traffic (§7). Run after `pnpm db:reset`.
 import { v7 as uuidv7 } from 'uuid';
 import { pool, withTx } from '../db.js';
-import { createMessage } from '../domain/messages.js';
+import { createMessage, deleteMessage, editMessage } from '../domain/messages.js';
+import { setReaction } from '../domain/reactions.js';
 import { drain } from '../worker.js';
 import { AVATAR_COLORS, CHANNELS, DMS, SEED_MESSAGES, USERS } from './data.js';
 
@@ -69,6 +70,25 @@ await withTx(async (tx) => {
       });
       messageCount++;
     }
+    for (const [handle, emoji, after] of m.reactions ?? []) {
+      await setReaction(tx, {
+        messageId: message.id,
+        userId: lookup(userIds, handle),
+        emoji,
+        on: true,
+        createdAt: minutesAgo(m.minutesAgo - after),
+      });
+    }
+    if (m.edit) {
+      await editMessage(tx, {
+        id: message.id,
+        userId: message.authorId,
+        body: m.edit.text,
+        expectedVersion: message.version,
+        editedAt: minutesAgo(m.minutesAgo - m.edit.after),
+      });
+    }
+    if (m.deleted) await deleteMessage(tx, { id: message.id, userId: message.authorId });
   }
 });
 

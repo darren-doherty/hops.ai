@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ActivityFeedDto, ActivityItemDto, ChannelDto, MessageDto, UserDto } from '../shared/types';
+import type { ActivityFeedDto, ActivityItemDto, ChannelDto, MessageDto, ReactionSummary, UserDto } from '../shared/types';
 
 export type View =
   | { kind: 'activity' }
@@ -41,6 +41,10 @@ type State = {
   setSendState: (id: string, state: SendState) => void;
   discard: (id: string) => void;
 
+  /** Optimistic local change (or its rollback): bypasses the version rule on purpose. */
+  setMessageLocal: (dto: MessageDto) => void;
+  /** Reactions are absolute summaries, so the latest one received simply wins. */
+  setReactions: (messageId: string, reactions: ReactionSummary[]) => void;
   setThread: (root: MessageDto, replies: MessageDto[]) => void;
   setActivity: (feed: ActivityFeedDto) => void;
   setUnreadCount: (n: number) => void;
@@ -144,6 +148,15 @@ export const useStore = create<State>((set) => ({
     }),
 
   setSendState: (id, state) => set((s) => ({ sendState: { ...s.sendState, [id]: state } })),
+
+  setMessageLocal: (dto) => set((s) => ({ messagesById: { ...s.messagesById, [dto.id]: dto } })),
+
+  setReactions: (messageId, reactions) =>
+    set((s) => {
+      const message = s.messagesById[messageId];
+      if (!message) return {};
+      return { messagesById: { ...s.messagesById, [messageId]: { ...message, reactions } } };
+    }),
 
   setThread: (root, replies) =>
     set((s) => {

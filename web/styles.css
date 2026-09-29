@@ -323,3 +323,46 @@ button.replies-link:hover { text-decoration: underline; }
 .reason-dm { background: #dbeafe; color: #1e40af; }
 .reason-participating { background: #ede9fe; color: #5b21b6; }
 .reason-reaction { background: #dcfce7; color: #166534; }
+
+/* Reactions */
+.reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.reaction-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #f8f8fa;
+  font-size: 13px;
+}
+.reaction-chip:hover { border-color: #c9c8ce; }
+.reaction-chip.mine { background: #eef2ff; border-color: #a5b4fc; }
+.reaction-count { font-size: 12px; font-weight: 600; color: var(--muted); }
+.reaction-chip.mine .reaction-count { color: var(--accent); }
+
+/* Message actions & editing */
+.message-actions.open { display: flex; }
+.message-actions button.danger:hover { background: #fee2e2; }
+.message.editing { background: #fffbeb; }
+.edit-box textarea {
+  width: 100%;
+  font: inherit;
+  line-height: 1.45;
+  padding: 6px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  resize: none;
+  outline: none;
+}
+.edit-hint { font-size: 12px; margin-top: 2px; }
+.edit-hint button { color: var(--accent); padding: 0; font-size: 12px; }
+.message-note {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 4px;
+  padding: 2px 8px;
+  display: inline-block;
+}

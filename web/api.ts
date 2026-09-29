@@ -1,4 +1,12 @@
-import type { ActivityFeedDto, ChannelDto, MessageDto, SearchHit, ThreadDto, UserDto } from '../shared/types';
+import type {
+  ActivityFeedDto,
+  ChannelDto,
+  MessageDto,
+  ReactionSummary,
+  SearchHit,
+  ThreadDto,
+  UserDto,
+} from '../shared/types';
 
 /** Current identity comes from ?as=<handle> (real auth is cut, §8). */
 export const currentHandle = new URLSearchParams(location.search).get('as');
@@ -31,6 +39,11 @@ export const api = {
   postMessage: (channelId: string, body: { id: string; body: string; parentId: string | null }) =>
     request<MessageDto>('POST', `/channels/${channelId}/messages`, body),
   search: (q: string) => request<SearchHit[]>('GET', `/search?q=${encodeURIComponent(q)}`),
+  editMessage: (id: string, body: { body: string; expectedVersion: number }) =>
+    request<MessageDto>('PATCH', `/messages/${id}`, body),
+  deleteMessage: (id: string) => request<MessageDto>('DELETE', `/messages/${id}`),
+  react: (id: string, emoji: string, on: boolean) =>
+    request<ReactionSummary[]>(on ? 'PUT' : 'DELETE', `/messages/${id}/reactions/${encodeURIComponent(emoji)}`),
   thread: (messageId: string) => request<ThreadDto>('GET', `/messages/${messageId}/thread`),
   activity: () => request<ActivityFeedDto>('GET', '/activity'),
   markActivityRead: (id: string) => request<void>('POST', `/activity/${id}/read`),

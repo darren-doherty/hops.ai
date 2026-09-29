@@ -18,6 +18,9 @@ export type ChannelDto = {
 
 export type ReactionSummary = { emoji: string; userIds: string[] };
 
+/** Fixed reaction palette: keeps the picker simple and doubles as server-side validation. */
+export const REACTION_EMOJI = ['👍', '❤️', '😂', '🎉', '👀', '🙏'];
+
 export type MessageDto = {
   id: string;
   channelId: string;

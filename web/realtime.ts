@@ -43,7 +43,7 @@ function handleEvent(event: ServerEvent) {
       if (s.view?.kind === 'activity') void loadActivity();
       break;
     case 'reactions.updated':
-      // Handled from Phase 4.
+      s.setReactions(event.messageId, event.reactions);
       break;
   }
 }

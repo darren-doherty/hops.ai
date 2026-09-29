@@ -1,6 +1,6 @@
 // User-facing operations that combine the store with the API.
 import { v7 as uuidv7 } from 'uuid';
-import { api } from './api';
+import { api, ApiError } from './api';
 import { useStore } from './store';
 import type { ActivityItemDto, MessageDto } from '../shared/types';
 
@@ -28,6 +28,70 @@ export async function refreshCurrentView() {
     threadRootId ? loadThread(threadRootId) : undefined,
     loadActivity(), // always: keeps the unread badge right
   ]);
+}
+
+/**
+ * Optimistic reaction toggle (§5.2): flip it locally at once, then replace it
+ * with the server's absolute summary, or roll back if the request fails.
+ */
+export function toggleReaction(messageId: string, emoji: string) {
+  const me = store().me!;
+  const message = store().messagesById[messageId];
+  if (!message) return;
+  const previous = message.reactions;
+  const existing = previous.find((r) => r.emoji === emoji);
+  const on = !existing?.userIds.includes(me.id);
+
+  const next = on
+    ? existing
+      ? previous.map((r) => (r.emoji === emoji ? { ...r, userIds: [...r.userIds, me.id] } : r))
+      : [...previous, { emoji, userIds: [me.id] }]
+    : previous
+        .map((r) => (r.emoji === emoji ? { ...r, userIds: r.userIds.filter((u) => u !== me.id) } : r))
+        .filter((r) => r.userIds.length > 0);
+
+  store().setReactions(messageId, next);
+  api
+    .react(messageId, emoji, on)
+    .then((reactions) => store().setReactions(messageId, reactions))
+    .catch(() => store().setReactions(messageId, previous));
+}
+
+/**
+ * Optimistic edit with a version check: shows the new text at once. If
+ * someone (e.g. another tab) edited first, the server's 409 carries the
+ * current message, which replaces ours. Resolves to a note for the user, or null.
+ */
+export async function editMessage(messageId: string, body: string): Promise<string | null> {
+  const previous = store().messagesById[messageId];
+  if (!previous || previous.body === body) return null;
+  store().setMessageLocal({ ...previous, body, editedAt: new Date().toISOString() });
+  try {
+    store().upsertMessage(await api.editMessage(messageId, { body, expectedVersion: previous.version }));
+    return null;
+  } catch (err) {
+    store().setMessageLocal(previous);
+    const current = (err as ApiError).body as { current?: MessageDto } | undefined;
+    if (err instanceof ApiError && err.status === 409 && current?.current) {
+      store().upsertMessage(current.current);
+      return 'This message changed elsewhere, so your edit was not saved. Showing the latest version.';
+    }
+    return "Couldn't save your edit. Please try again.";
+  }
+}
+
+/** Optimistic delete: shows the tombstone at once, restores the message if the request fails. */
+export async function deleteMessage(messageId: string): Promise<string | null> {
+  const previous = store().messagesById[messageId];
+  if (!previous) return null;
+  store().setMessageLocal({ ...previous, status: 'deleted', body: '', reactions: [] });
+  try {
+    store().upsertMessage(await api.deleteMessage(messageId));
+    return null;
+  } catch {
+    store().setMessageLocal(previous);
+    return "Couldn't delete the message. Please try again.";
+  }
 }
 
 /** Mark read, then take the user to the message in context: the thread for replies, the channel otherwise. */
