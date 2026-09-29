@@ -4,7 +4,7 @@
 import type pg from 'pg';
 import { pool, withTx, type Db } from './db.js';
 import { handlers } from './consumers/index.js';
-import type { ConsumerName, EventType } from './consumers/registry.js';
+import { ENABLED_CONSUMERS, type ConsumerName, type EventType } from './consumers/registry.js';
 import type { OutboxEvent } from './consumers/types.js';
 
 const BATCH_SIZE = 50;
@@ -124,25 +124,38 @@ export async function drain(opts: { consumers?: ConsumerName[] } = {}): Promise<
 }
 
 let running = false;
-let timer: NodeJS.Timeout | undefined;
+const timers = new Set<NodeJS.Timeout>();
 
-/** Single-flight loop: the next tick is scheduled only after the current one finishes. */
+/**
+ * One single-flight loop per consumer: each loop schedules its next tick only
+ * after the current one finishes, and a slow or failing consumer (e.g. search
+ * at 800ms latency) never delays another's deliveries.
+ */
 export function start(logger: Logger = console) {
   log = logger;
   if (running) return;
   running = true;
-  const loop = async () => {
-    try {
-      await tick();
-    } catch (err) {
-      log.error(`[worker] tick failed: ${String(err)}`);
-    }
-    if (running) timer = setTimeout(loop, TICK_INTERVAL_MS);
-  };
-  void loop();
+  for (const consumer of ENABLED_CONSUMERS) {
+    const loop = async () => {
+      try {
+        await tick({ consumers: [consumer] });
+      } catch (err) {
+        log.error(`[worker] ${consumer} tick failed: ${String(err)}`);
+      }
+      if (running) {
+        const timer = setTimeout(() => {
+          timers.delete(timer);
+          void loop();
+        }, TICK_INTERVAL_MS);
+        timers.add(timer);
+      }
+    };
+    void loop();
+  }
 }
 
 export function stop() {
   running = false;
-  clearTimeout(timer);
+  for (const timer of timers) clearTimeout(timer);
+  timers.clear();
 }

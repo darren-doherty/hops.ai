@@ -6,6 +6,8 @@ import { Sidebar } from './components/Sidebar';
 import { UserPicker } from './components/UserSwitcher';
 import { ChannelView } from './components/ChannelView';
 import { SearchView } from './components/SearchView';
+import { ActivityFeed } from './components/ActivityFeed';
+import { ThreadPanel } from './components/ThreadPanel';
 import type { UserDto } from '../shared/types';
 
 export function App() {
@@ -34,10 +36,24 @@ export function App() {
   if (error) return <div className="centered">Couldn't reach the server: {error}</div>;
   if (!me) return <div className="centered muted">Loading…</div>;
 
+  return <Shell users={users} />;
+}
+
+function Shell({ users }: { users: UserDto[] }) {
+  const me = useStore((s) => s.me)!;
+  const threadRootId = useStore((s) => s.threadRootId);
+  const unreadCount = useStore((s) => s.unreadCount);
+
+  // Name in the tab makes two side-by-side windows easy to tell apart.
+  useEffect(() => {
+    document.title = `${unreadCount ? `(${unreadCount}) ` : ''}${me.name.split(' ')[0]} · Hops`;
+  }, [me, unreadCount]);
+
   return (
     <div className="layout">
       <Sidebar users={users} />
       <Main />
+      {threadRootId && <ThreadPanel rootId={threadRootId} />}
     </div>
   );
 }
@@ -53,14 +69,7 @@ function Main() {
       {connection === 'reconnecting' && (
         <div className="connection-banner">Reconnecting… messages may be out of date until the connection is back.</div>
       )}
-      {view?.kind === 'activity' && (
-        <>
-          <header className="main-header">
-            <h1>Activity</h1>
-          </header>
-          <div className="empty muted">Nothing here yet.</div>
-        </>
-      )}
+      {view?.kind === 'activity' && <ActivityFeed />}
       {view?.kind === 'search' && <SearchView q={view.q} />}
       {channel && <ChannelView channel={channel} />}
     </main>

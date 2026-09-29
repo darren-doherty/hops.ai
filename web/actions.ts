@@ -2,7 +2,7 @@
 import { v7 as uuidv7 } from 'uuid';
 import { api } from './api';
 import { useStore } from './store';
-import type { MessageDto } from '../shared/types';
+import type { ActivityItemDto, MessageDto } from '../shared/types';
 
 const store = () => useStore.getState();
 
@@ -11,10 +11,39 @@ export async function loadChannel(channelId: string) {
   store().setChannelMessages(channelId, messages);
 }
 
+export async function loadThread(rootId: string) {
+  const { root, replies } = await api.thread(rootId);
+  store().setThread(root, replies);
+}
+
+export async function loadActivity() {
+  store().setActivity(await api.activity());
+}
+
 /** Refetch whatever is on screen: after (re)connecting, realtime events may have been missed. */
 export async function refreshCurrentView() {
-  const view = store().view;
-  if (view?.kind === 'channel') await loadChannel(view.channelId);
+  const { view, threadRootId } = store();
+  await Promise.all([
+    view?.kind === 'channel' ? loadChannel(view.channelId) : undefined,
+    threadRootId ? loadThread(threadRootId) : undefined,
+    loadActivity(), // always: keeps the unread badge right
+  ]);
+}
+
+/** Mark read, then take the user to the message in context: the thread for replies, the channel otherwise. */
+export function openActivityItem(item: ActivityItemDto) {
+  if (!item.readAt) {
+    store().markActivityRead(item.id);
+    api.markActivityRead(item.id).catch(() => void loadActivity());
+  }
+  store().setView({ kind: 'channel', channelId: item.channelId });
+  if (item.parentId) store().openThread(item.parentId);
+  store().setHighlight(item.messageId);
+}
+
+export function markAllActivityRead() {
+  store().markAllActivityRead();
+  api.markAllActivityRead().catch(() => void loadActivity());
 }
 
 /**

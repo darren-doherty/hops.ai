@@ -3,7 +3,7 @@ import type { Db } from '../db.js';
 import { HttpError } from '../errors.js';
 import { parseMentions } from './mentions.js';
 import { enqueue } from './outbox.js';
-import type { MessageDto } from '../../shared/types.js';
+import type { MessageDto, ThreadDto } from '../../shared/types.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const MAX_BODY_LENGTH = 4000;
@@ -51,6 +51,22 @@ export async function listChannelMessages(db: Db, channelId: string, limit = 100
     [channelId, limit],
   );
   return rows.reverse();
+}
+
+/** A thread: its root (a tombstone if deleted) plus replies, oldest first. Accepts a reply's id too. */
+export async function getThread(db: Db, messageId: string, viewerId: string): Promise<ThreadDto> {
+  const { rows } = await db.query<{ root_id: string; channel_id: string }>(
+    'SELECT COALESCE(parent_id, id) AS root_id, channel_id FROM messages WHERE id = $1',
+    [messageId],
+  );
+  if (!rows[0]) throw new HttpError(404, 'Message not found');
+  await assertMember(db, rows[0].channel_id, viewerId);
+  const root = await getMessageDto(db, rows[0].root_id);
+  const { rows: replies } = await db.query<MessageDto>(
+    `${DTO_SELECT} WHERE m.parent_id = $1 ORDER BY m.created_at, m.id`,
+    [rows[0].root_id],
+  );
+  return { root: root!, replies };
 }
 
 export async function assertMember(db: Db, channelId: string, userId: string): Promise<void> {

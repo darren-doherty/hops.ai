@@ -80,7 +80,9 @@ CREATE TABLE activities (
   actor_ids   uuid[] NOT NULL DEFAULT '{}',  -- newest first
   count       int  NOT NULL DEFAULT 1,
   latest_at   timestamptz NOT NULL,          -- advancing this marks the group unread again
-  read_at     timestamptz NULL,
+  read_at     timestamptz NULL,              -- NULL = unread; cleared when new content arrives
+  last_read_at timestamptz NULL,             -- "read up to": never cleared, so grouped counts
+                                             -- (e.g. "3 new DMs") only count what's actually new
   UNIQUE (user_id, group_key)
 );
 CREATE INDEX activities_feed_idx   ON activities (user_id, latest_at DESC);

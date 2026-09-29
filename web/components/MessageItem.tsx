@@ -9,14 +9,17 @@ type Props = {
   id: string;
   /** Continuation of the previous author's messages: hide avatar and name, like Slack. */
   compact: boolean;
+  /** Rendered inside the thread panel: no thread affordances (one level of threads). */
+  inThread?: boolean;
 };
 
-export function MessageItem({ id, compact }: Props) {
+export function MessageItem({ id, compact, inThread = false }: Props) {
   const message = useStore((s) => s.messagesById[id]);
   const author = useStore((s) => (message ? s.usersById[message.authorId] : undefined));
   const sendState = useStore((s) => s.sendState[id]);
   const highlighted = useStore((s) => s.highlightMessageId === id);
   const discard = useStore((s) => s.discard);
+  const openThread = useStore((s) => s.openThread);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,6 +31,7 @@ export function MessageItem({ id, compact }: Props) {
 
   if (!message) return null;
   const deleted = message.status === 'deleted';
+  const canReply = !inThread && !deleted && !sendState && !message.parentId;
 
   return (
     <div
@@ -63,11 +67,11 @@ export function MessageItem({ id, compact }: Props) {
           )}
         </div>
 
-        {message.replyCount > 0 && (
-          <div className="replies-link">
+        {!inThread && message.replyCount > 0 && (
+          <button className="replies-link" onClick={() => openThread(message.id)}>
             {message.replyCount} {message.replyCount === 1 ? 'reply' : 'replies'}
             {message.lastReplyAt && <span className="muted"> · last reply {relativeTime(message.lastReplyAt)} ago</span>}
-          </div>
+          </button>
         )}
 
         {sendState === 'failed' && (
@@ -77,6 +81,14 @@ export function MessageItem({ id, compact }: Props) {
           </div>
         )}
       </div>
+
+      {canReply && (
+        <div className="message-actions">
+          <button onClick={() => openThread(message.id)} title="Reply in thread">
+            💬 Reply
+          </button>
+        </div>
+      )}
     </div>
   );
 }

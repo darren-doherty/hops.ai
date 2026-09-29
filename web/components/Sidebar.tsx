@@ -8,6 +8,7 @@ export function Sidebar({ users }: { users: UserDto[] }) {
   const channels = useStore((s) => s.channels);
   const view = useStore((s) => s.view);
   const setView = useStore((s) => s.setView);
+  const unreadCount = useStore((s) => s.unreadCount);
 
   const isActive = (channelId: string) => view?.kind === 'channel' && view.channelId === channelId;
   const publicChannels = channels.filter((c) => c.kind === 'public');
@@ -23,6 +24,7 @@ export function Sidebar({ users }: { users: UserDto[] }) {
         onClick={() => setView({ kind: 'activity' })}
       >
         <span>Activity</span>
+        {unreadCount > 0 && <span className="badge">{unreadCount}</span>}
       </button>
 
       <h2>Channels</h2>

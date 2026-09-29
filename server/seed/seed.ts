@@ -4,6 +4,7 @@
 import { v7 as uuidv7 } from 'uuid';
 import { pool, withTx } from '../db.js';
 import { createMessage } from '../domain/messages.js';
+import { drain } from '../worker.js';
 import { AVATAR_COLORS, CHANNELS, DMS, SEED_MESSAGES, USERS } from './data.js';
 
 const existing = await pool.query('SELECT count(*)::int AS n FROM users');
@@ -71,7 +72,16 @@ await withTx(async (tx) => {
   }
 });
 
+// Build activity feeds now (search is left for the server's worker to catch up
+// on, which is itself worth watching), then mark anything older than 2 hours
+// as read so feeds look lived-in rather than hundreds of items unread.
+const processed = await drain({ consumers: ['activity'] });
+const { rowCount: markedRead } = await pool.query(
+  "UPDATE activities SET read_at = latest_at, last_read_at = latest_at WHERE latest_at < now() - interval '2 hours'",
+);
+
 console.log(`Seeded ${USERS.length} users, ${CHANNELS.length} channels, ${DMS.length} DMs, ${messageCount} messages`);
+console.log(`Activity: processed ${processed} deliveries, marked ${markedRead} older items read`);
 await pool.end();
 
 function lookup(map: Map<string, string>, key: string): string {

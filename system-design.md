@@ -100,6 +100,7 @@ The feed stores **references, not snapshots**. Each item is rendered from the *l
 ### 2.5 Read state
 
 - Clicking an item marks it read and opens the message in context (channel scrolled to it, or the thread panel).
+- **Replying in a DM marks it read**, as in Slack: sending a message means you've read the conversation up to that point. A DM group's count only covers messages since the later of your last read and your last message.
 - "Mark all as read".
 - *Cut:* automatically marking items read when you view the message in a channel (§8).
 
@@ -148,6 +149,8 @@ activities(
   message_id, channel_id,
   actor_ids uuid[], count int,
   latest_at timestamptz, read_at timestamptz NULL,
+  last_read_at timestamptz NULL, -- "read up to": unlike read_at, never cleared when new
+                                 -- content arrives, so grouped counts only count what's new
   UNIQUE (user_id, group_key)
 )
   INDEX (user_id, latest_at DESC)
@@ -198,7 +201,7 @@ COMMIT
 
 ### 4.2 Worker
 
-- A **single-flight** loop every 250ms: the next tick doesn't start until the current one finishes.
+- A **single-flight loop per consumer**, every 250ms: the next tick doesn't start until the current one finishes. Separate loops matter: with one shared loop, a batch waited for its slowest delivery, so 800ms search latency delayed activity updates (found during Phase 3 testing).
 - **Claiming** is safe even with several workers:
 
   ```sql
@@ -229,7 +232,7 @@ COMMIT
 
 **Activity (local projection):**
 1. Recompute the groups this message affects **from the source of truth**. For example, a reaction group is rebuilt from the current `reactions` rows, not from counting events. That makes it idempotent and independent of event order.
-2. Upsert or delete the `activities` rows **and mark the delivery done in the same transaction**. The result: each event takes effect exactly once.
+2. Upsert or delete the `activities` rows **and mark the delivery done in the same transaction**. The result: each event takes effect exactly once. A transaction-scoped advisory lock per group (message, or DM channel) serialises concurrent recomputes, so a slower transaction can't overwrite a newer result.
 3. `read_at` is kept unless `latest_at` advances.
 4. After commit, push `activity.changed` over WebSocket to the affected users.
 

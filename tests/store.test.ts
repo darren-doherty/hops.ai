@@ -27,7 +27,7 @@ function msg(id: string, overrides: Partial<MessageDto> = {}): MessageDto {
 const s = () => useStore.getState();
 
 beforeEach(() => {
-  useStore.setState({ messagesById: {}, channelOrder: {}, threadOrder: {}, sendState: {} });
+  useStore.setState({ messagesById: {}, channelOrder: {}, threadOrder: {}, sendState: {}, activity: null, unreadCount: 0 });
 });
 
 describe('message store', () => {
@@ -74,6 +74,25 @@ describe('message store', () => {
     expect(s().channelOrder[CHANNEL]).toEqual(['m1']);
     expect(s().messagesById.m9).toBeUndefined();
     expect(s().sendState.m9).toBeUndefined();
+  });
+
+  it('loads a thread without dropping a reply that is still sending', () => {
+    s().addPending(msg('m9', { version: 0, parentId: 'm1' }));
+    s().setThread(msg('m1'), [msg('m2', { parentId: 'm1' })]);
+    expect(s().threadOrder.m1).toEqual(['m2', 'm9']);
+    expect(s().channelOrder[CHANNEL]).toBeUndefined(); // replies never enter the channel list
+  });
+
+  it('marks an activity item read optimistically, decrementing the badge only once', () => {
+    const item = {
+      id: 'a1', reason: 'mention' as const, count: 1, actorIds: ['u2'], latestAt: '', readAt: null,
+      channelId: CHANNEL, messageId: 'm1', parentId: null, preview: '', editedAt: null, root: null, emojis: [],
+    };
+    s().setActivity({ items: [item], unreadCount: 3 });
+    s().markActivityRead('a1');
+    s().markActivityRead('a1');
+    expect(s().unreadCount).toBe(2);
+    expect(s().activity![0].readAt).not.toBeNull();
   });
 
   it('does not create a list for a channel that has not been loaded', () => {

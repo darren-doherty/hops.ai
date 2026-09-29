@@ -102,6 +102,11 @@ export const SEED_MESSAGES: SeedMessage[] = [
   { channel: 'engineering', author: 'olga', text: 'Search latency p95 is up to 800ms, I\'m investigating.', minutesAgo: 120 },
   { channel: 'engineering', author: 'quinn', text: 'PR for the rate limiter is ready: tiny change, big impact. @alice would you mind taking a look?', minutesAgo: 25 },
   { channel: 'engineering', author: 'leo', text: 'Lunch order going in at 12:30 if anyone wants in', minutesAgo: 6 },
+  { channel: 'engineering', author: 'alice', text: 'Shipping the activity feed behind a flag tomorrow morning.', minutesAgo: 50,
+    replies: [
+      { author: 'bob', text: '🚀 nice! I\'ll keep an eye on the worker metrics.', after: 10 },
+      { author: 'carol', text: '@alice can we demo it at the all-hands?', after: 30 },
+    ] },
 
   // #product
   { channel: 'product', author: 'maya', text: 'Draft spec for thread muting is ready. Mostly borrowing Slack\'s model.', minutesAgo: 2000 },
@@ -142,6 +147,8 @@ export const SEED_MESSAGES: SeedMessage[] = [
   { channel: 'dm:alice:bob', author: 'bob', text: 'Got a sec to pair on the outbox worker later?', minutesAgo: 180 },
   { channel: 'dm:alice:bob', author: 'alice', text: 'Sure, after 3?', minutesAgo: 170 },
   { channel: 'dm:alice:bob', author: 'bob', text: 'Perfect 👍', minutesAgo: 168 },
+  { channel: 'dm:alice:bob', author: 'bob', text: 'Also, could you look at my PR when you get a chance?', minutesAgo: 12 },
+  { channel: 'dm:alice:bob', author: 'bob', text: 'No rush, tomorrow is fine', minutesAgo: 11 },
   { channel: 'dm:alice:carol', author: 'carol', text: 'Loved your RFC. One question about read state: per item or a watermark?', minutesAgo: 600 },
   { channel: 'dm:alice:dave', author: 'dave', text: 'Can you give me a 2-line summary of the feed work for the board?', minutesAgo: 30 },
   { channel: 'dm:bob:carol', author: 'carol', text: 'Are you going to the crit today?', minutesAgo: 250 },

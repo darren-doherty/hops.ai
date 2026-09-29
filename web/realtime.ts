@@ -1,7 +1,7 @@
 // WebSocket client. Best-effort (§5.1): every (re)connect refetches the current
 // view, which covers anything missed while disconnected, including the gap
 // between the initial HTTP load and the socket subscribing.
-import { refreshCurrentView } from './actions';
+import { loadActivity, refreshCurrentView } from './actions';
 import { useStore } from './store';
 import type { ServerEvent } from '../shared/types';
 
@@ -37,9 +37,13 @@ function handleEvent(event: ServerEvent) {
     case 'message.upserted':
       s.upsertMessage(event.message);
       break;
-    case 'reactions.updated':
     case 'activity.changed':
-      // Handled from Phase 3/4 onwards.
+      s.setUnreadCount(event.unreadCount);
+      // The event only carries the count; fetch the items if the feed is on screen.
+      if (s.view?.kind === 'activity') void loadActivity();
+      break;
+    case 'reactions.updated':
+      // Handled from Phase 4.
       break;
   }
 }

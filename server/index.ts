@@ -10,6 +10,7 @@ import { channelRoutes } from './routes/channels.js';
 import { messageRoutes } from './routes/messages.js';
 import { searchRoutes } from './routes/search.js';
 import { realtimeRoutes } from './routes/realtime.js';
+import { activityRoutes } from './routes/activity.js';
 
 const app = Fastify({ logger: { level: 'info' }, disableRequestLogging: true });
 
@@ -32,6 +33,7 @@ await app.register(
       await authed.register(channelRoutes);
       await authed.register(messageRoutes);
       await authed.register(searchRoutes);
+      await authed.register(activityRoutes);
     });
   },
   { prefix: '/api' },

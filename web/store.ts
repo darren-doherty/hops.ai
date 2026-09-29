@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ChannelDto, MessageDto, UserDto } from '../shared/types';
+import type { ActivityFeedDto, ActivityItemDto, ChannelDto, MessageDto, UserDto } from '../shared/types';
 
 export type View =
   | { kind: 'activity' }
@@ -26,6 +26,9 @@ type State = {
   /** Optimistic sends that the server hasn't confirmed yet. */
   sendState: Record<string, SendState>;
 
+  activity: ActivityItemDto[] | null;
+  unreadCount: number;
+
   setSession: (me: UserDto, users: UserDto[], channels: ChannelDto[]) => void;
   setView: (view: View) => void;
   openThread: (rootId: string | null) => void;
@@ -37,6 +40,12 @@ type State = {
   addPending: (dto: MessageDto) => void;
   setSendState: (id: string, state: SendState) => void;
   discard: (id: string) => void;
+
+  setThread: (root: MessageDto, replies: MessageDto[]) => void;
+  setActivity: (feed: ActivityFeedDto) => void;
+  setUnreadCount: (n: number) => void;
+  markActivityRead: (id: string) => void;
+  markAllActivityRead: () => void;
 };
 
 const byTime = (all: Record<string, MessageDto>) => (a: string, b: string) => {
@@ -66,6 +75,8 @@ export const useStore = create<State>((set) => ({
   channelOrder: {},
   threadOrder: {},
   sendState: {},
+  activity: null,
+  unreadCount: 0,
 
   setSession: (me, users, channels) =>
     set({
@@ -133,6 +144,37 @@ export const useStore = create<State>((set) => ({
     }),
 
   setSendState: (id, state) => set((s) => ({ sendState: { ...s.sendState, [id]: state } })),
+
+  setThread: (root, replies) =>
+    set((s) => {
+      const messagesById = { ...s.messagesById };
+      for (const dto of [root, ...replies]) {
+        const local = messagesById[dto.id];
+        if (!local || dto.version >= local.version) messagesById[dto.id] = dto;
+      }
+      const pendingHere = Object.keys(s.sendState).filter((id) => messagesById[id]?.parentId === root.id);
+      const ids = [...new Set([...replies.map((r) => r.id), ...pendingHere])].sort(byTime(messagesById));
+      return { messagesById, threadOrder: { ...s.threadOrder, [root.id]: ids } };
+    }),
+
+  setActivity: (feed) => set({ activity: feed.items, unreadCount: feed.unreadCount }),
+  setUnreadCount: (unreadCount) => set({ unreadCount }),
+
+  // Optimistic: the server confirms via activity.changed.
+  markActivityRead: (id) =>
+    set((s) => {
+      const item = s.activity?.find((a) => a.id === id);
+      if (!item || item.readAt) return {};
+      return {
+        activity: s.activity!.map((a) => (a.id === id ? { ...a, readAt: new Date().toISOString() } : a)),
+        unreadCount: Math.max(0, s.unreadCount - 1),
+      };
+    }),
+  markAllActivityRead: () =>
+    set((s) => ({
+      activity: s.activity?.map((a) => (a.readAt ? a : { ...a, readAt: new Date().toISOString() })) ?? null,
+      unreadCount: 0,
+    })),
 
   discard: (id) =>
     set((s) => {

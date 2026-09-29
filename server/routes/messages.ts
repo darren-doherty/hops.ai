@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { pool, withTx } from '../db.js';
 import { HttpError } from '../errors.js';
-import { assertMember, createMessage, getMessageDto, listChannelMessages } from '../domain/messages.js';
+import { assertMember, createMessage, getMessageDto, getThread, listChannelMessages } from '../domain/messages.js';
 import { channelTopic, publish } from '../realtime/hub.js';
 
 type ChannelParams = { id: string };
@@ -12,6 +12,8 @@ export async function messageRoutes(app: FastifyInstance) {
     await assertMember(pool, req.params.id, req.user.id);
     return listChannelMessages(pool, req.params.id);
   });
+
+  app.get<{ Params: { id: string } }>('/messages/:id/thread', async (req) => getThread(pool, req.params.id, req.user.id));
 
   app.post<{ Params: ChannelParams; Body: CreateBody }>('/channels/:id/messages', async (req, reply) => {
     const { id, body, parentId } = req.body ?? {};
