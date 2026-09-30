@@ -68,7 +68,13 @@ export const notificationsConsumer: ExternalConsumer = {
       if (done.has(keys[i])) continue;
       const title = r.reason === 'dm' ? `${firstName} sent you a message` : `${firstName} mentioned you in #${m.channelName}`;
       try {
-        await notificationSender.send({ idempotencyKey: keys[i], userId: r.userId, title, body: preview });
+        await notificationSender.send({
+          idempotencyKey: keys[i],
+          userId: r.userId,
+          title,
+          body: preview,
+          link: { channelId: m.channelId, messageId: m.id, parentId: m.parentId },
+        });
         await pool.query('INSERT INTO notification_acks (idempotency_key) VALUES ($1) ON CONFLICT DO NOTHING', [keys[i]]);
       } catch (err) {
         failures.push(err);

@@ -8,6 +8,7 @@ import { ChannelView } from './components/ChannelView';
 import { SearchView } from './components/SearchView';
 import { ActivityFeed } from './components/ActivityFeed';
 import { ThreadPanel } from './components/ThreadPanel';
+import { Toasts } from './components/Toasts';
 import type { UserDto } from '../shared/types';
 
 export function App() {
@@ -54,6 +55,7 @@ function Shell({ users }: { users: UserDto[] }) {
       <Sidebar users={users} />
       <Main />
       {threadRootId && <ThreadPanel rootId={threadRootId} />}
+      <Toasts />
     </div>
   );
 }

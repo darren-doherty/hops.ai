@@ -2,7 +2,7 @@
 import { v7 as uuidv7 } from 'uuid';
 import { api, ApiError } from './api';
 import { useStore } from './store';
-import type { ActivityItemDto, MessageDto } from '../shared/types';
+import type { ActivityItemDto, MessageDto, NotificationDto } from '../shared/types';
 
 const store = () => useStore.getState();
 
@@ -103,6 +103,15 @@ export function openActivityItem(item: ActivityItemDto) {
   store().setView({ kind: 'channel', channelId: item.channelId });
   if (item.parentId) store().openThread(item.parentId);
   store().setHighlight(item.messageId);
+}
+
+/** Follow a notification's deep link: the channel, plus the thread for replies. */
+export function openNotification(notification: NotificationDto) {
+  const { channelId, messageId, parentId } = notification.link;
+  store().dismissToast(notification.id);
+  store().setView({ kind: 'channel', channelId });
+  if (parentId) store().openThread(parentId);
+  store().setHighlight(messageId);
 }
 
 export function markAllActivityRead() {

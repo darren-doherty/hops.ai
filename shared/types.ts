@@ -74,7 +74,16 @@ export type ActivityFeedDto = { items: ActivityItemDto[]; unreadCount: number };
 
 export type ThreadDto = { root: MessageDto; replies: MessageDto[] };
 
+/** A push notification as delivered to the recipient's device, with a deep link to the message. */
+export type NotificationDto = {
+  id: string;
+  title: string;
+  body: string;
+  link: { channelId: string; messageId: string; parentId: string | null };
+};
+
 export type ServerEvent =
+  | { type: 'notification.received'; notification: NotificationDto }
   | { type: 'message.upserted'; message: MessageDto }
   | { type: 'reactions.updated'; messageId: string; channelId: string; reactions: ReactionSummary[] }
   | { type: 'activity.changed'; unreadCount: number };

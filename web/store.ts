@@ -1,5 +1,13 @@
 import { create } from 'zustand';
-import type { ActivityFeedDto, ActivityItemDto, ChannelDto, MessageDto, ReactionSummary, UserDto } from '../shared/types';
+import type {
+  ActivityFeedDto,
+  ActivityItemDto,
+  ChannelDto,
+  MessageDto,
+  NotificationDto,
+  ReactionSummary,
+  UserDto,
+} from '../shared/types';
 
 export type View =
   | { kind: 'activity' }
@@ -28,6 +36,8 @@ type State = {
 
   activity: ActivityItemDto[] | null;
   unreadCount: number;
+  /** Delivered push notifications, shown as toasts */
+  toasts: NotificationDto[];
 
   setSession: (me: UserDto, users: UserDto[], channels: ChannelDto[]) => void;
   setView: (view: View) => void;
@@ -50,6 +60,8 @@ type State = {
   setUnreadCount: (n: number) => void;
   markActivityRead: (id: string) => void;
   markAllActivityRead: () => void;
+  pushToast: (notification: NotificationDto) => void;
+  dismissToast: (id: string) => void;
 };
 
 const byTime = (all: Record<string, MessageDto>) => (a: string, b: string) => {
@@ -81,6 +93,7 @@ export const useStore = create<State>((set) => ({
   sendState: {},
   activity: null,
   unreadCount: 0,
+  toasts: [],
 
   setSession: (me, users, channels) =>
     set({
@@ -188,6 +201,13 @@ export const useStore = create<State>((set) => ({
       activity: s.activity?.map((a) => (a.readAt ? a : { ...a, readAt: new Date().toISOString() })) ?? null,
       unreadCount: 0,
     })),
+
+  // Newest first, at most 3 on screen; the same notification is never shown twice.
+  pushToast: (notification) =>
+    set((s) =>
+      s.toasts.some((t) => t.id === notification.id) ? {} : { toasts: [notification, ...s.toasts].slice(0, 3) },
+    ),
+  dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
 
   discard: (id) =>
     set((s) => {

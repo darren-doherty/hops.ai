@@ -114,6 +114,7 @@ The feed stores **references, not snapshots**. Each item is rendered from the *l
   - Edited → send the latest text.
 - **Staleness:** events older than 15 minutes are dropped. After an outage, nobody gets a flood of notifications from an hour ago. This also stops seeding from sending notifications.
 - **Idempotency key** `messageId:userId` is passed to the sender. Retries and edits don't notify twice, but a mention *added* by an edit does notify.
+- **Where notifications appear:** the fake provider "delivers to the device" by pushing to the recipient's open tabs, which show a toast (click to open the message). So a notification is visibly different from activity: it only arrives for alerts (mentions, DMs), and only after the grace period.
 - **Per-recipient acknowledgements** (`notification_acks`): on retry, only recipients the provider hasn't acknowledged are re-sent. Without this, a retry re-sent to everyone, so an attempt only succeeded if *every* recipient's call did. At a 50% failure rate that's 0.5⁴ ≈ 6% for four recipients, and messages with many mentions would go `dead` (found during Phase 5 testing). The idempotency key still covers the one case acks can't: the provider sent it but the response was lost.
 - **Honest limit:** a notification can't be recalled once sent. "Deleted within the grace period, so never sent" is the guarantee. There is also a small gap between the final check and the send.
 

@@ -27,7 +27,7 @@ function msg(id: string, overrides: Partial<MessageDto> = {}): MessageDto {
 const s = () => useStore.getState();
 
 beforeEach(() => {
-  useStore.setState({ messagesById: {}, channelOrder: {}, threadOrder: {}, sendState: {}, activity: null, unreadCount: 0 });
+  useStore.setState({ messagesById: {}, channelOrder: {}, threadOrder: {}, sendState: {}, activity: null, unreadCount: 0, toasts: [] });
 });
 
 describe('message store', () => {
@@ -93,6 +93,14 @@ describe('message store', () => {
     s().markActivityRead('a1');
     expect(s().unreadCount).toBe(2);
     expect(s().activity![0].readAt).not.toBeNull();
+  });
+
+  it('shows each notification once, newest first, at most three at a time', () => {
+    const n = (id: string) => ({ id, title: id, body: '', link: { channelId: CHANNEL, messageId: id, parentId: null } });
+    for (const id of ['n1', 'n2', 'n2', 'n3', 'n4']) s().pushToast(n(id));
+    expect(s().toasts.map((t) => t.id)).toEqual(['n4', 'n3', 'n2']);
+    s().dismissToast('n3');
+    expect(s().toasts.map((t) => t.id)).toEqual(['n4', 'n2']);
   });
 
   it('does not create a list for a channel that has not been loaded', () => {

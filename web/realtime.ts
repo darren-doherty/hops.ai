@@ -45,5 +45,8 @@ function handleEvent(event: ServerEvent) {
     case 'reactions.updated':
       s.setReactions(event.messageId, event.reactions);
       break;
+    case 'notification.received':
+      s.pushToast(event.notification);
+      break;
   }
 }
