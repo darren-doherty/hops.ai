@@ -23,9 +23,10 @@ export const USERS: { handle: string; name: string }[] = [
   { handle: 'tom', name: 'Tom Lindqvist' },
 ];
 
+// Muted, warm palette to sit with the hops.ai brand (flame, leaf, link, dust).
 export const AVATAR_COLORS = [
-  '#e11d48', '#d97706', '#059669', '#0284c7', '#7c3aed',
-  '#db2777', '#65a30d', '#0891b2', '#4f46e5', '#c2410c',
+  '#e0613b', '#3f8f52', '#3b5fd4', '#8a7f72', '#c4841d',
+  '#b4476b', '#1e7f86', '#6e56c2', '#5b6b3a', '#44403c',
 ];
 
 /**

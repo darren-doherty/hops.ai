@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from 'react';
+import { Icon } from './Icon';
 import { sendMessage } from '../actions';
 
 type Props = { channelId: string; parentId?: string | null; placeholder: string };
@@ -32,7 +33,7 @@ export function Composer({ channelId, parentId = null, placeholder }: Props) {
         maxLength={4000}
       />
       <button className="send" onClick={submit} disabled={!text.trim()} aria-label="Send">
-        Send
+        <Icon name="arrowUp" size={16} />
       </button>
     </div>
   );

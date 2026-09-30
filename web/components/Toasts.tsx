@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { openNotification } from '../actions';
 import { useStore } from '../store';
+import { Icon } from './Icon';
 import type { NotificationDto } from '../../shared/types';
 
 const AUTO_DISMISS_MS = 8000;
@@ -32,11 +33,13 @@ function Toast({ notification }: { notification: NotificationDto }) {
   return (
     <div className="toast" role="status">
       <button className="toast-body" onClick={() => openNotification(notification)}>
-        <span className="toast-title">🔔 {notification.title}</span>
+        <span className="toast-title">
+          <Icon name="bell" size={14} /> {notification.title}
+        </span>
         <span className="toast-text clamp-2">{notification.body}</span>
       </button>
       <button className="toast-close" onClick={() => dismiss(notification.id)} aria-label="Dismiss notification">
-        ✕
+        <Icon name="x" size={14} />
       </button>
     </div>
   );

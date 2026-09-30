@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import { Avatar } from './Avatar';
 import { MessageBody } from './MessageBody';
 import { Reactions } from './Reactions';
+import { Icon } from './Icon';
 import { REACTION_EMOJI } from '../../shared/types';
 
 type Props = {
@@ -164,24 +165,24 @@ export function MessageItem({ id, compact, inThread = false }: Props) {
           ) : (
             <>
               <button onClick={() => setPickerOpen(true)} title="Add reaction">
-                ☺+
+                <Icon name="smilePlus" />
               </button>
               {canReply && (
                 <button onClick={() => openThread(message.id)} title="Reply in thread">
-                  💬
+                  <Icon name="message" />
                 </button>
               )}
               {mine && (
                 <>
                   <button onClick={startEdit} title="Edit message">
-                    ✎
+                    <Icon name="pencil" />
                   </button>
                   <button
                     className="danger"
                     onClick={async () => setNote(await deleteMessage(id))}
                     title="Delete message"
                   >
-                    🗑
+                    <Icon name="trash" />
                   </button>
                 </>
               )}

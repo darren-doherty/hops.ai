@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { loadThread } from '../actions';
 import { useStore } from '../store';
 import { Composer } from './Composer';
+import { Icon } from './Icon';
 import { MessageItem } from './MessageItem';
 
 const GROUP_WINDOW_MS = 5 * 60_000;
@@ -33,7 +34,7 @@ export function ThreadPanel({ rootId }: { rootId: string }) {
           {channel && <span className="muted">{channel.kind === 'dm' ? channel.name : `#${channel.name}`}</span>}
         </div>
         <button className="icon-button" onClick={() => openThread(null)} aria-label="Close thread">
-          ✕
+          <Icon name="x" />
         </button>
       </header>
 
