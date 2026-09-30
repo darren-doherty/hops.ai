@@ -297,7 +297,7 @@ If time runs short: send and reactions first, then edit and delete.
 
 ## 7. Seed data
 
-About 20 users, 8 public channels, a handful of DMs, and about 500 messages, with:
+20 users, 8 public channels, 5 DMs, and about 635 messages (hand-written conversations plus deterministic generated traffic, fixed random seed), with:
 - **Realistic timestamps:** a few in the last 5 minutes, then the last hour, today, and the past week.
 - Replies, reactions, mentions, some edits and deletes.
 
@@ -321,7 +321,16 @@ About 20 users, 8 public channels, a handful of DMs, and about 500 messages, wit
 | Real auth | `?as=alice` user switcher |
 | LISTEN/NOTIFY for the worker | 250ms polling is enough at this scale |
 | Outbox cleanup | Would delete old events once all their deliveries are `done` |
-| Broad test coverage | Four focused integration tests on the guarantees (§10) |
+| Broad test coverage | 34 focused tests on the guarantees and client reconciliation (§10); no UI/browser tests |
+
+**Known limitations found while building** (deliberately left, with the fix I'd make):
+
+| Limitation | Fix |
+|---|---|
+| Realtime `reactions.updated` events carry no version, so two quick toggles arriving out of order can briefly show stale counts until the next event or refetch | A per-message reaction revision, applied with the same "newer wins" rule as message versions |
+| Replying in a *thread* doesn't mark that thread's activity read (replying in a DM does) | Apply the DM "your own reply means you've read up to here" rule to thread groups |
+| A notification toast shows even if you're looking at that conversation (Slack would hold it back) | Presence-aware delivery; left out so a demo never looks like a notification went missing |
+| The WebSocket hub is in memory, so it's single-process | Redis pub/sub or Postgres LISTEN/NOTIFY behind the same `publish()` interface |
 
 ---
 
@@ -353,12 +362,12 @@ Tests drive the worker directly and make deliveries due by setting `next_attempt
 
 ## 11. Demo script
 
-Two browser windows, `?as=alice` and `?as=bob`, with `SEARCH_FAILURE_RATE=0.5`.
+Two browser windows, `?as=alice` and `?as=bob`, with `SEARCH_FAILURE_RATE=0.5`. (The README has the full, step-by-step version.)
 
 1. Alice posts in #engineering. Bob sees it instantly, with Alice's side optimistic.
 2. Bob replies in the thread. Alice gets **participating** activity.
 3. Alice edits her message. Bob sees "(edited)", and the feed shows the new text.
 4. Bob and Carol react 👍. Alice sees **one grouped** reaction item.
-5. Alice @mentions Bob. Bob gets a mention item, and a notification after 10s.
+5. Alice @mentions Bob. Bob gets a mention item at once, and a notification toast after 10s.
 6. Alice @mentions Bob again and deletes the message within 10s. The item disappears and **no notification is sent**.
 7. `/debug/deliveries` shows search failing and retrying while everything else is done. Search then catches up, and the deleted message is not searchable.
