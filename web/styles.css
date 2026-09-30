@@ -4,7 +4,7 @@
  * wants attention. Token values are taken from the hops.ai stylesheet.
  */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --font: 'PP Mori', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   --bg: oklch(97.06% 0.0017 67.8);          /* page ground */
@@ -43,26 +43,27 @@
   -webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: oklch(14.5% 0 0);
-    --card: oklch(20.5% 0 0);
-    --fg: oklch(98.5% 0 0);
-    --muted-fg: oklch(70.8% 0 0);
-    --subtle: oklch(26.9% 0 0);
-    --hover: oklch(26.9% 0 0);
-    --selected: oklch(37.1% 0 0);
-    --border: oklch(100% 0 0 / 0.1);
-    --input: oklch(100% 0 0 / 0.15);
-    --primary: oklch(92.2% 0 0);
-    --primary-fg: oklch(20.5% 0 0);
-    --destructive: oklch(70.4% 0.191 22.216);
-    --flame-text: oklch(76% 0.15 40);
-    --leaf-text: oklch(78% 0.13 150);
-    --link: oklch(72% 0.16 268);
-    --raised: 0 0 0 1px #ffffff14;
-    --overlay: 0 0 0 1px #ffffff1a, 0 12px 32px -8px #00000099;
-  }
+/* Dark theme. data-theme is set before first paint (index.html) from the
+   saved choice, or the OS setting when the choice is "System" (web/theme.ts). */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: oklch(14.5% 0 0);
+  --card: oklch(20.5% 0 0);
+  --fg: oklch(98.5% 0 0);
+  --muted-fg: oklch(70.8% 0 0);
+  --subtle: oklch(26.9% 0 0);
+  --hover: oklch(26.9% 0 0);
+  --selected: oklch(37.1% 0 0);
+  --border: oklch(100% 0 0 / 0.1);
+  --input: oklch(100% 0 0 / 0.15);
+  --primary: oklch(92.2% 0 0);
+  --primary-fg: oklch(20.5% 0 0);
+  --destructive: oklch(70.4% 0.191 22.216);
+  --flame-text: oklch(76% 0.15 40);
+  --leaf-text: oklch(78% 0.13 150);
+  --link: oklch(72% 0.16 268);
+  --raised: 0 0 0 1px #ffffff14;
+  --overlay: 0 0 0 1px #ffffff1a, 0 12px 32px -8px #00000099;
 }
 
 * { box-sizing: border-box; }
@@ -202,6 +203,32 @@ input, textarea, select { font: inherit; color: inherit; }
   min-width: 20px;
   text-align: center;
 }
+
+/* Theme switcher: segmented control pinned to the bottom of the sidebar */
+.theme-switcher {
+  display: flex;
+  gap: 2px;
+  margin: auto 2px 0;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--selected);
+  position: sticky;
+  bottom: 0;
+}
+.theme-switcher button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 0;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-fg);
+}
+.theme-switcher button:hover { color: var(--fg); }
+.theme-switcher button.active { background: var(--card); color: var(--fg); box-shadow: var(--raised); }
 
 /* ─── Main header ────────────────────────────────────────────────────────── */
 

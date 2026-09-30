@@ -3,6 +3,7 @@ import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { UserSwitcher } from './UserSwitcher';
 import { SearchBox } from './SearchBox';
+import { ThemeSwitcher } from './ThemeSwitcher';
 import type { UserDto } from '../../shared/types';
 
 export function Sidebar({ users }: { users: UserDto[] }) {
@@ -49,6 +50,8 @@ export function Sidebar({ users }: { users: UserDto[] }) {
           <span className="nav-label">{c.name}</span>
         </button>
       ))}
+
+      <ThemeSwitcher />
     </nav>
   );
 }
