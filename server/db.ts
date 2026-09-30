@@ -3,6 +3,9 @@ import { config } from './config.js';
 
 export type Db = pg.Pool | pg.PoolClient;
 
+// Tests drop and recreate the schema, so they must never fall back to the dev database.
+if (process.env.VITEST && !config.testDatabaseUrl) throw new Error('TEST_DATABASE_URL must be set to run tests');
+
 export const pool = new pg.Pool({
   connectionString: process.env.VITEST ? config.testDatabaseUrl : config.databaseUrl,
   max: 10,

@@ -342,10 +342,12 @@ Vertical slices, so there's always something demoable. The one exception is **th
 
 ## 10. Tests (integration, against real Postgres)
 
-1. **Atomic write:** create → message + outbox event + 3 delivery rows exist, all from one transaction.
-2. **Search convergence:** search fails → the delivery stays pending → the retry succeeds → the index has the latest version. Replaying an old version, or processing an edit after a delete, doesn't bring the message back.
-3. **Activity idempotency:** processing the same event twice gives identical `activities` state.
-4. **Grace delay:** a message deleted within the grace period → no notification is sent.
+1. **Atomic write:** create → message + outbox event + 3 delivery rows exist, all from one transaction. A crash before commit leaves nothing; a retried create doesn't duplicate.
+2. **Search convergence:** search fails → the delivery stays pending → the retry succeeds → the index has the latest version. Replaying an old version, or processing an edit after a delete, doesn't bring the message back. Tested at both layers: thin events re-read state, and the index rejects stale writes.
+3. **Activity idempotency:** processing every event twice, newest first, gives identical `activities` state. Also covers the attention rules, read state across edits and new reactions, and read-time hiding of deleted messages and removed mentions.
+4. **Grace delay:** a message deleted within the grace period → no notification is sent; an edit within it sends the latest text and skips removed mentions. Also covers duplicate deliveries, lost responses, per-recipient retries and staleness.
+
+Tests drive the worker directly and make deliveries due by setting `next_attempt_at`, so there's no sleeping. The bugs found during the build each have a regression test. Each guarantee was **mutation-checked**: its protection was removed and the test was confirmed to fail. Deleted-message notifications turned out to be guarded twice (the consumer and `computeRecipients`), so the test only fails when both are removed.
 
 ---
 
